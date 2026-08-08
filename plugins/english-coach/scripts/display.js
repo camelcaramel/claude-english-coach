@@ -46,6 +46,19 @@ function phrasesOf(item) {
 const WIDTH = Math.max(40, Number(process.env.EN_COACH_WIDTH) || 76);
 
 /**
+ * 블록 제목.
+ *
+ * Claude Code 는 systemMessage 앞에 `UserPromptSubmit says: ` 를 붙인다.
+ * 렌더러에 하드코딩돼 있고(`[hookName," says: ",content]`) 훅 설정에 이름을
+ * 바꿀 필드가 없어서 없앨 수 없다. 그 자리에 뭐가 오는지가 유일하게 우리가
+ * 통제할 수 있는 부분이므로, 첫 줄에서 이게 무슨 기능인지 밝힌다.
+ *
+ * ↩ 는 이 화면에서 렌더링되는 것을 확인한 글자다. 이모지는 폭이 터미널마다
+ * 달라 블록 정렬을 흔들 수 있어 쓰지 않는다.
+ */
+const TITLE = process.env.EN_COACH_TITLE || '↩ 직전 프롬프트로 배우는 개발 영어';
+
+/**
  * 색은 기본으로 끈다.
  * systemMessage 가 ANSI 를 통과시키는지 실측하지 않았고, 통과시키지 않으면
  * 이스케이프 문자가 그대로 찍혀 지금보다 더 안 읽힌다. 켜보고 판단할 수 있게
@@ -88,7 +101,7 @@ function main() {
 
   // 한 턴 늦게 보여주므로, 무엇에 대한 영어인지부터 밝히고 원문과 번역을
   // 나란히 놓는다. 짝을 눈으로 맞출 수 있어야 학습이 된다.
-  const head = rest.length ? `↩ 직전 프롬프트 (+${rest.length} 대기)` : '↩ 직전 프롬프트';
+  const head = rest.length ? `${TITLE}  (+${rest.length} 대기)` : TITLE;
   const lines = [head, ''];
 
   // 접히는 줄은 라벨 너비만큼 들여쓴다. 들여쓰기가 없으면 KO 가 접힌 줄인지

@@ -62,7 +62,10 @@ setPending([{
 {
   const { msg } = display();
   const lines = msg.split('\n');
-  check('직전 프롬프트임을 맨 위에 밝힘', lines[0].startsWith('↩ 직전 프롬프트'), JSON.stringify(lines[0]));
+  // 첫 줄은 Claude Code 가 붙이는 `UserPromptSubmit says: ` 바로 뒤에 온다.
+  // 그 자리가 이 블록이 뭔지 밝힐 수 있는 유일한 지점이다.
+  check('제목이 기능과 출처를 함께 밝힘',
+    lines[0].includes('직전 프롬프트') && lines[0].includes('개발 영어'), JSON.stringify(lines[0]));
   check('원문 한국어 전문', msg.includes('사이트 디자인 먼저 잡고 시작해보려고 해요'), JSON.stringify(msg));
   check('번역 전문', msg.includes('nail down the site design first.'), JSON.stringify(msg));
   check('KO / EN 라벨', msg.includes('\nKO  ') && msg.includes('\nEN  '), JSON.stringify(msg));
@@ -209,6 +212,17 @@ setPending([{
   const msg2 = JSON.parse(r2.stdout).systemMessage;
   const over2 = msg2.split('\n').filter((l) => L.displayWidth(l) > 48 && l.trim().split(' ').length > 1);
   check('폭 48 에서도 지켜짐', over2.length === 0, JSON.stringify(over2));
+}
+
+// 제목은 바꿔 끼울 수 있어야 한다
+setPending([{ ko: '제목 테스트용 한국어 문장입니다', en: 'Title test.', phrases: [] }]);
+{
+  const r = spawnSync('node', [path.join(SCRIPTS, 'display.js')], {
+    input: JSON.stringify({ prompt: '제목을 바꿔서 보냅니다 한국어로' }),
+    encoding: 'utf8', env: { ...ENV, EN_COACH_TITLE: '↩ 개발 영어 · 직전 프롬프트' }, timeout: 10000,
+  });
+  const msg = JSON.parse(r.stdout).systemMessage;
+  check('EN_COACH_TITLE 반영', msg.split('\n')[0] === '↩ 개발 영어 · 직전 프롬프트', JSON.stringify(msg.split('\n')[0]));
 }
 
 // 색은 기본으로 꺼져 있어야 한다
