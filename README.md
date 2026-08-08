@@ -104,6 +104,34 @@ EN  Add retry logic for when login fails.
 
 ---
 
+## 복습 — `/en-review`
+
+```
+/en-review          HTML 리포트를 만들어 브라우저로 연다
+/en-review --chat   채팅 안에 요약 5줄만
+```
+
+LLM 을 부르지 않는다. 순수 집계라 즉시 끝나고 비용이 0이며 결과가 매번 같다.
+
+리포트에 들어 있는 것:
+
+| | |
+| --- | --- |
+| **플래시카드** | 한국어 뜻 → 영어 표현. 예문에서 표현을 빈칸으로 가리고, 답에는 그 표현이 나왔던 내 프롬프트를 같이 보여준다. 틀리면 1번 상자로, 맞히면 다음 상자로 — 간격이 0/1/3/7/21일로 벌어진다. 진도는 브라우저 localStorage 에 남는다 (스페이스=답 보기, 1=다시, 2=알았다) |
+| **일별 학습량** | 최근 16주 히트맵 |
+| **표현 빈도** | 상위 15개. 좁은 도메인 가설이 맞는지 여기서 보인다 |
+| **전체 기록** | 원문·영어·표현 전부, 검색 가능 |
+
+생성물은 `${CLAUDE_PLUGIN_DATA}/review.html` 이고 외부 리소스를 하나도 참조하지
+않는 단일 파일이라 그대로 복사해 어디서든 열 수 있다.
+
+**재사용률**은 표현 하나가 평균 몇 번 등장했는지다. 1.00 이면 한 번도 안 겹친
+것이고, 올라갈수록 "개발 프롬프트 영어는 유한한 목록"이라는 SRD 의 전제가
+데이터로 확인되는 것이다. 이 숫자가 몇 주 뒤에도 1에 가깝다면 전제가 틀렸거나
+표현 추출이 지나치게 문장별로 특화된 것이다.
+
+---
+
 ## statusline (선택)
 
 하단에 누적 현황을 상시 표시한다. 비용도 지연도 0이다.
@@ -160,8 +188,7 @@ EN 🔥 6일 연속 · 오늘 12개 · 이번주 반복: short-circuit ×4
 cat ~/.claude/plugins/data/english-coach-english-coach-dev/log.jsonl
 ```
 
-이 로그가 Phase 2 복습(`/en-review`)의 재료가 된다. 아직 커맨드는 없지만
-**로그는 지금부터 쌓이고 있다.**
+이 로그를 `/en-review` 가 리포트로 만든다.
 
 ---
 
@@ -187,7 +214,8 @@ cat ~/.claude/plugins/data/english-coach-english-coach-dev/log.jsonl
 ```bash
 node plugins/english-coach/test/run-tests.js                # 훅 엣지 케이스 45개
 node plugins/english-coach/test/test-statusline-install.js  # statusline 경로 해석 7개
-node plugins/english-coach/test/test-display-pairing.js     # 짝 맞춤·레이아웃 44개
+node plugins/english-coach/test/test-display-pairing.js     # 짝 맞춤·레이아웃 46개
+node plugins/english-coach/test/test-review.js              # 리포트 생성 32개
 claude plugin validate ./plugins/english-coach              # 매니페스트 검증
 ```
 
@@ -240,9 +268,8 @@ cat ~/.claude/plugins/data/english-coach-english-coach-dev/debug.log
 
 ## 현재 범위
 
-Phase 1(노출·적립)까지 구현됐다. 아직 없는 것:
+Phase 1(노출·적립)과 Phase 2(복습)까지 구현됐다. 아직 없는 것:
 
-- `/en-review` 복습 커맨드와 HTML 리포트 (Phase 2)
 - `/en-mode` 교정 모드 — 어설픈 영어로 써도 교정본을 보여주고 Claude에게는
   정확한 의도를 전달 (Phase 3, 이게 최종 목표다)
 
