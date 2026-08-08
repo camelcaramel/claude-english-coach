@@ -23,13 +23,23 @@ const MAX_BACKLOG = 3;
 
 /**
  * 한 줄로 눌러 담는다.
- * 모델이 목록형 요청을 번호 매긴 여러 줄로 돌려주는 경우가 있는데, 그대로 쓰면
- * 3줄 포맷이 6줄, 7줄로 터진다. 줄 수는 우리가 통제해야 한다.
+ *
+ * 줄 수 자체는 더 이상 제한하지 않는다. 한 턴 늦게 보여주는 이상 원문과 번역을
+ * 나란히 놓고 익힐 표현까지 곁들여야 학습이 되기 때문이다. 다만 각 항목이
+ * 자기 줄 안에 머물러야 블록이 읽히므로, 모델이 목록형 응답을 여러 줄로 돌려주면
+ * 여기서 눌러 담는다. 한계값은 잘림 방지가 아니라 가독성 기준이다.
  */
 function oneLine(s, n) {
   if (typeof s !== 'string') return '';
   const t = s.replace(/\s+/g, ' ').trim();
-  return t.length <= n ? t : t.slice(0, n - 1) + '…';
+  return !n || t.length <= n ? t : t.slice(0, n - 1) + '…';
+}
+
+/** 예전 스키마(key/note)로 쌓인 항목도 같은 형태로 다룬다. */
+function phrasesOf(item) {
+  if (Array.isArray(item.phrases) && item.phrases.length) return item.phrases;
+  if (item.key) return [{ p: item.key, ko: item.note || '', ex: '' }];
+  return [];
 }
 
 function main() {
@@ -53,21 +63,23 @@ function main() {
 
   if (!item || !item.en) L.passthrough();
 
-  const key = oneLine(item.key, 60);
-  const note = item.note ? ` : ${oneLine(item.note, 40)}` : '';
+  // 한 턴 늦게 보여주므로, 무엇에 대한 영어인지부터 밝히고 원문과 번역을
+  // 나란히 놓는다. 짝을 눈으로 맞출 수 있어야 학습이 된다.
+  const head = rest.length ? `↩ 직전 프롬프트 (+${rest.length} 대기)` : '↩ 직전 프롬프트';
+  const lines = [head, ''];
 
-  // 출처 한국어를 같이 보여준다.
-  //
-  // SRD §3.3 은 정확히 2줄을 요구하지만 여기서 3줄로 늘렸다. 번역이 비동기라
-  // 표시되는 영어는 항상 이전 턴의 것인데, 화면에는 방금 보낸 프롬프트가 붙어 있다.
-  // 라벨이 없으면 "지금 이 프롬프트의 오역"으로 읽힌다 — 실제로 그렇게 오해받았다.
-  // 학습 도구에서 잘못된 (한국어, 영어) 쌍을 머리에 넣는 건 아무것도 안 하느니만 못하다.
-  // 한 줄 더 쓰는 값보다 짝이 어긋나는 손해가 크다.
-  const lines = [];
-  if (item.ko) lines.push(`↩ "${oneLine(item.ko, 44)}"`);
-  lines.push(`EN: ${oneLine(item.en, 100)}`);
-  lines.push(`→ ${key}${note}`);
-  if (rest.length) lines[lines.length - 1] += `   (+${rest.length} 대기)`;
+  if (item.ko) lines.push(`KO  ${oneLine(item.ko, 0)}`);
+  lines.push(`EN  ${oneLine(item.en, 0)}`);
+
+  const phrases = phrasesOf(item);
+  if (phrases.length) {
+    lines.push('', '익힐 표현');
+    phrases.forEach((ph, i) => {
+      const gloss = ph.ko ? `  —  ${oneLine(ph.ko, 40)}` : '';
+      lines.push(`  ${i + 1}. ${oneLine(ph.p, 70)}${gloss}`);
+      if (ph.ex) lines.push(`     "${oneLine(ph.ex, 100)}"`);
+    });
+  }
 
   process.stdout.write(JSON.stringify({ systemMessage: lines.join('\n') }));
   process.exit(0);

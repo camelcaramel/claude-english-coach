@@ -73,7 +73,9 @@ fs.writeFileSync(
   try { obj = JSON.parse(r.stdout); } catch {}
   check('pending 소비 · stdout 이 JSON 객체 하나', !!obj && typeof obj === 'object', JSON.stringify(r.stdout));
   check('pending 소비 · systemMessage 만 있음', !!obj && Object.keys(obj).join() === 'systemMessage');
-  check('pending 소비 · 정확히 2줄', !!obj && obj.systemMessage.split('\n').length === 2, obj && JSON.stringify(obj.systemMessage));
+  check('pending 소비 · 영어와 표현이 모두 담김',
+    !!obj && obj.systemMessage.includes('Add retry logic') && obj.systemMessage.includes('retry logic for when ~'),
+    obj && JSON.stringify(obj.systemMessage));
   const after = fs.readFileSync(path.join(SANDBOX, 'pending.jsonl'), 'utf8');
   check('pending 소비 후 비워짐', after.trim() === '', JSON.stringify(after));
 }

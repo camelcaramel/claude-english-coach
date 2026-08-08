@@ -45,15 +45,27 @@ function display() {
   return { r, obj, msg: obj && obj.systemMessage };
 }
 
-// ── 출처 한국어가 화면에 나오는가 ─────────────────────────────
-console.log('출처 표시');
-setPending([{ ko: '사이트 디자인 먼저 잡고 시작해보려고 해요', en: 'I want to nail down the site design first.', key: 'nail down', note: '확정 짓다' }]);
+// ── 원문·번역·익힐 표현이 다 나오는가 ────────────────────────
+console.log('출처 표시와 학습 블록');
+setPending([{
+  ko: '사이트 디자인 먼저 잡고 시작해보려고 해요',
+  en: 'I want to nail down the site design first.',
+  phrases: [
+    { p: 'nail down ~', ko: '확정 짓다', ex: 'nail down the API contract before coding' },
+    { p: 'start with ~', ko: '~부터 착수', ex: 'start with the auth flow' },
+  ],
+}]);
 {
   const { msg } = display();
-  check('출처 한국어가 포함됨', !!msg && msg.includes('사이트 디자인 먼저 잡고'), JSON.stringify(msg));
-  check('영어도 포함됨', !!msg && msg.includes('nail down the site design'), JSON.stringify(msg));
-  check('출처 줄이 맨 위', !!msg && msg.split('\n')[0].startsWith('↩'), JSON.stringify(msg));
-  check('3줄', !!msg && msg.split('\n').length === 3, msg && String(msg.split('\n').length));
+  const lines = msg.split('\n');
+  check('직전 프롬프트임을 맨 위에 밝힘', lines[0].startsWith('↩ 직전 프롬프트'), JSON.stringify(lines[0]));
+  check('원문 한국어 전문', msg.includes('사이트 디자인 먼저 잡고 시작해보려고 해요'), JSON.stringify(msg));
+  check('번역 전문', msg.includes('nail down the site design first.'), JSON.stringify(msg));
+  check('KO / EN 라벨', msg.includes('\nKO  ') && msg.includes('\nEN  '), JSON.stringify(msg));
+  check('익힐 표현 섹션', msg.includes('익힐 표현'), JSON.stringify(msg));
+  check('표현 2개 모두', msg.includes('nail down ~') && msg.includes('start with ~'), JSON.stringify(msg));
+  check('한국어 뜻', msg.includes('확정 짓다'), JSON.stringify(msg));
+  check('예문', msg.includes('nail down the API contract before coding'), JSON.stringify(msg));
 }
 
 // ── FIFO 로 하나씩, 아무것도 버리지 않는가 ────────────────────
@@ -66,7 +78,7 @@ setPending([
 {
   const { msg } = display();
   check('가장 오래된 것부터 (FIFO)', !!msg && msg.includes('First one.'), JSON.stringify(msg));
-  check('대기 개수 표시', !!msg && msg.includes('+2 대기'), JSON.stringify(msg));
+  check('대기 개수 표시', !!msg && msg.split('\n')[0].includes('+2 대기'), JSON.stringify(msg));
   check('나머지 2개 보존됨', readPending().length === 2, String(readPending().length));
 
   const second = display();
@@ -90,39 +102,51 @@ setPending(Array.from({ length: 9 }, (_, i) => ({ ko: `프롬프트 ${i} 입니�
   check('3개까지만 보존', readPending().length === 3, String(readPending().length));
 }
 
-// ── 긴 입력 잘림 ──────────────────────────────────────────────
-console.log('\n길이 제한');
-setPending([{ ko: '가'.repeat(300), en: 'x'.repeat(400), key: 'k', note: 'n' }]);
+// ── 원문·번역은 자르지 않는다 ─────────────────────────────────
+console.log('\n전문 보존');
+setPending([{ ko: '가'.repeat(300), en: 'x'.repeat(400), phrases: [{ p: 'k', ko: 'n', ex: 'e' }] }]);
 {
   const { msg } = display();
-  const lines = msg.split('\n');
-  check('출처 줄이 60자 이내', lines[0].length <= 60, String(lines[0].length));
-  check('EN 줄이 110자 이내', lines[1].length <= 110, String(lines[1].length));
-  check('말줄임표 표시', msg.includes('…'), JSON.stringify(msg.slice(0, 60)));
+  check('원문 300자 그대로', msg.includes('가'.repeat(300)), '잘림');
+  check('번역 400자 그대로', msg.includes('x'.repeat(400)), '잘림');
 }
 
-// ── 여러 줄 번역이 와도 줄 수가 터지지 않는가 ────────────────
-console.log('\n줄 수 통제');
+// ── 각 항목이 자기 줄 안에 머무는가 ──────────────────────────
+console.log('\n줄 정렬');
 setPending([{
   ko: '디자인 레퍼런스 몇 개 드릴게요\n1. https://a.com\n2. https://b.com',
   en: 'Here are some design references:\n1. https://a.com\n2. https://b.com\n\nStart with the design system.',
-  key: 'using these\nas reference',
-  note: '자료 제공 후\n작업 시작',
+  phrases: [{ p: 'use ~ as\nreference', ko: '참고용으로\n활용', ex: 'use the\nApollo examples as reference' }],
 }]);
 {
   const { msg } = display();
-  check('모델이 여러 줄을 줘도 정확히 3줄', !!msg && msg.split('\n').length === 3, msg && String(msg.split('\n').length));
-  check('URL 은 살아있음', !!msg && msg.includes('https://a.com'), JSON.stringify(msg));
+  const koLines = msg.split('\n').filter((l) => l.startsWith('KO  '));
+  const enLines = msg.split('\n').filter((l) => l.startsWith('EN  '));
+  check('KO 는 한 줄', koLines.length === 1 && koLines[0].includes('https://b.com'), JSON.stringify(koLines));
+  check('EN 는 한 줄', enLines.length === 1 && enLines[0].includes('Start with the design system.'), JSON.stringify(enLines));
+  check('표현도 한 줄로 눌림', msg.includes('use ~ as reference'), JSON.stringify(msg));
+  check('예문도 한 줄로 눌림', msg.includes('"use the Apollo examples as reference"'), JSON.stringify(msg));
 }
 
-// ── ko 없는 예전 항목도 깨지지 않는가 ────────────────────────
+// ── 예전 스키마로 쌓인 항목도 깨지지 않는가 ──────────────────
 console.log('\n하위 호환');
 setPending([{ en: 'No source recorded.', key: 'k', note: 'n' }]);
 {
   const { r, msg } = display();
   check('exit 0', r.status === 0, `status=${r.status}`);
-  check('출처 줄 없이 2줄', !!msg && msg.split('\n').length === 2, msg && String(msg.split('\n').length));
+  check('KO 줄 없음', !!msg && !msg.includes('\nKO  '), JSON.stringify(msg));
   check('영어는 표시됨', !!msg && msg.includes('No source recorded.'), JSON.stringify(msg));
+  check('key/note 를 표현으로 승격', !!msg && msg.includes('1. k') && msg.includes('n'), JSON.stringify(msg));
+}
+
+// ── 표현이 하나도 없어도 되는가 ───────────────────────────────
+console.log('\n표현 없음');
+setPending([{ ko: '한국어 원문입니다 여기', en: 'English only.' }]);
+{
+  const { r, msg } = display();
+  check('exit 0', r.status === 0, `status=${r.status}`);
+  check('익힐 표현 섹션 생략', !!msg && !msg.includes('익힐 표현'), JSON.stringify(msg));
+  check('원문·번역은 나옴', !!msg && msg.includes('한국어 원문입니다 여기') && msg.includes('English only.'), JSON.stringify(msg));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

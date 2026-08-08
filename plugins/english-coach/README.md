@@ -25,20 +25,32 @@ Phase 0 실측에서 `claude -p` 헤드리스 호출은 훅 안에서 종단 **1
 보지 못하는 것을 실측으로 확인했다 — 작업 컨텍스트가 오염되지 않는다.
 
 ```
-↩ "로그인 실패할 때 리트라이 로직 좀 넣어줘"
-EN: Add retry logic for login failures
-→ on failure : 에러 처리 시 사용하는 패턴
+↩ 직전 프롬프트
+
+KO  네 일단 디자인 레퍼런스 몇 개 드릴게요 1. https://www.cosmos.so/ 2. ... 참고해서 디자인 시스템 만드는 작업부터 시작해주세요
+EN  I've got some design references for you: https://www.cosmos.so/, ... Use these as reference and kick off the design system work first.
+
+익힐 표현
+  1. use ~ as reference  —  참고용으로
+     "use the Apollo examples as reference"
+  2. kick off ~ first  —  먼저 시작
+     "kick off the database migration first"
 ```
 
-첫 줄의 출처 한국어는 **없으면 안 된다.** SRD §3.3 은 정확히 2줄을 요구하지만,
-표시되는 영어는 항상 이전 턴의 것인데 화면에는 방금 보낸 프롬프트가 붙어 있다.
-출처가 없으면 "지금 이 프롬프트의 오역"으로 읽힌다 — 실사용에서 실제로 그렇게
-오해받았다. 학습 도구가 잘못된 (한국어, 영어) 쌍을 각인시키는 건 아무것도
-안 하느니만 못하다. 한 줄 더 쓰는 값보다 짝이 어긋나는 손해가 크다.
+**SRD §3.3 의 2줄 제약은 폐기했다.** 그 제약은 프롬프트를 보낸 직후 같은 화면에서
+읽는 것을 전제로 한 값이다. 한 턴 늦게 보여주는 이상 원문과 번역을 나란히 놓지
+않으면 짝을 맞출 수 없고, 짝이 어긋난 (한국어, 영어) 쌍을 각인시키는 건 아무것도
+안 하느니만 못하다. 실사용에서 실제로 멀쩡한 번역이 오역으로 오해받았다.
+
+익힐 표현은 2~3개를 뽑고 각각에 한국어 뜻과 **다른** 예문을 붙인다. 번역문을
+그대로 재탕하면 패턴이 아니라 그 문장 하나만 남기 때문이다. `~` 는 갈아끼우는
+자리를 표시한다.
+
+줄 수는 제한하지 않지만 각 항목은 자기 줄 안에 머문다. 모델이 URL 목록을 여러
+줄로 돌려주면 표시 단계에서 눌러 담는다. 원문과 번역 자체는 자르지 않는다.
 
 밀린 결과는 FIFO 로 한 턴에 하나씩 소비하고 최대 3개까지 들고 간다.
-2개 이상 밀리면 `(+N 대기)` 가 붙는다. 모델이 목록형 응답을 여러 줄로 돌려줘도
-표시 단계에서 한 줄로 눌러 담기 때문에 항상 3줄을 넘지 않는다.
+2개 이상 밀리면 첫 줄에 `(+N 대기)` 가 붙는다.
 
 ## 설치
 
@@ -114,11 +126,14 @@ stdout 에는 아무것도 쓰지 않는다 — 슬롯은 점유돼 있지만 �
 | `state.json` | `{"mode":"exposure"}` — Phase 3 에서 토글 |
 | `bin/` | statusline 용 안정 경로 사본 |
 
-로그 스키마 (SRD §3.4):
+로그 스키마 (SRD §3.4 + `phrases`):
 
 ```json
-{"t":1754630400000,"ko":"원문","en":"영어 버전","key":"핵심 표현","note":"짧은 한국어 설명","cwd":"/path","mode":"exposure","ms":17560}
+{"t":1754630400000,"ko":"원문","en":"영어 버전","key":"use ~ as reference","note":"참고용으로","phrases":[{"p":"use ~ as reference","ko":"참고용으로","ex":"use the Apollo examples as reference"}],"cwd":"/path","mode":"exposure","ms":45287}
 ```
+
+`key`/`note` 는 `phrases[0]` 로 계속 채운다. statusline 의 최빈 표현 집계와
+기존 로그가 그 필드를 쓰고 있어 깨뜨릴 이유가 없다.
 
 ## 테스트
 
