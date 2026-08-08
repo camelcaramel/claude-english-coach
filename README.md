@@ -51,12 +51,19 @@
 다음 프롬프트를 보낼 때 위에 이렇게 뜬다:
 
 ```
-UserPromptSubmit says: EN: Add retry logic for login failures
+UserPromptSubmit says: ↩ "로그인 실패할 때 리트라이 로직 좀 넣어줘"
+                       EN: Add retry logic for login failures
                        → on failure : 에러 처리 시 사용하는 패턴
 ```
 
-**왜 다음 프롬프트인가** — 번역에 약 17초가 걸린다. 기다리게 하면 개발이 끊기므로
+**왜 다음 프롬프트인가** — 번역에 20~50초가 걸린다. 기다리게 하면 개발이 끊기므로
 백그라운드로 돌리고 결과를 다음 턴에 보여준다. 체감 지연은 약 160ms다.
+
+**첫 줄 `↩` 는 이 영어가 어느 프롬프트의 것인지 알려준다.** 방금 보낸 프롬프트가
+아니라 이전 것이다. 이걸 놓치면 멀쩡한 번역을 오역으로 오해하게 된다.
+
+번역이 여러 개 밀리면 오래된 것부터 한 턴에 하나씩 나오고, 남은 개수가
+`(+2 대기)` 처럼 붙는다.
 
 이 표시는 **당신에게만 보인다.** Claude의 작업 컨텍스트에는 안 들어가므로
 작업 품질에 영향을 주지 않는다.
@@ -142,6 +149,7 @@ cat ~/.claude/plugins/data/english-coach-english-coach-dev/log.jsonl
 | 변수 | 기본값 | 용도 |
 | --- | --- | --- |
 | `EN_COACH_MODEL` | `haiku` | 번역 모델. `sonnet`으로 올리면 표현 품질이 좋아진다 |
+| `EN_COACH_TIMEOUT_MS` | `150000` | 번역 자식 세션 제한시간. 넘기면 그 프롬프트는 로그에 안 남는다 |
 | `EN_COACH_DEBUG` | (없음) | 설정 시 데이터 디렉터리에 `debug.log` 기록 |
 
 ---

@@ -18,6 +18,20 @@
 const fs = require('fs');
 const L = require('./lib');
 
+/** 밀린 결과를 이 개수까지만 들고 간다. 더 오래된 건 로그에만 남고 화면에선 포기한다. */
+const MAX_BACKLOG = 3;
+
+/**
+ * 한 줄로 눌러 담는다.
+ * 모델이 목록형 요청을 번호 매긴 여러 줄로 돌려주는 경우가 있는데, 그대로 쓰면
+ * 3줄 포맷이 6줄, 7줄로 터진다. 줄 수는 우리가 통제해야 한다.
+ */
+function oneLine(s, n) {
+  if (typeof s !== 'string') return '';
+  const t = s.replace(/\s+/g, ' ').trim();
+  return t.length <= n ? t : t.slice(0, n - 1) + '…';
+}
+
 function main() {
   if (L.isChild()) L.passthrough();
 
@@ -26,24 +40,36 @@ function main() {
   const pending = L.readJsonl(L.P.pending());
   if (!pending.length) L.passthrough();
 
-  // 가장 최근 것 하나만 보여준다. 밀린 게 여러 개여도 3줄 넘기면 안 읽는다.
-  const item = pending[pending.length - 1];
+  // FIFO. 예전에는 마지막 것만 보여주고 나머지를 버렸는데, 번역이 40초까지
+  // 걸리는 동안 프롬프트를 두어 개 더 보내면 중간 것들이 조용히 사라졌다.
+  const item = pending[0];
+  const rest = pending.slice(1, 1 + MAX_BACKLOG);
 
   try {
-    fs.writeFileSync(L.P.pending(), ''); // 소비했으므로 비운다
+    fs.writeFileSync(L.P.pending(), rest.map((r) => JSON.stringify(r)).join('\n') + (rest.length ? '\n' : ''));
   } catch (e) {
-    L.debug(`pending clear failed: ${e.message}`);
+    L.debug(`pending rewrite failed: ${e.message}`);
   }
 
   if (!item || !item.en) L.passthrough();
 
-  const key = item.key ? `${item.key}` : '';
-  const note = item.note ? ` : ${item.note}` : '';
+  const key = oneLine(item.key, 60);
+  const note = item.note ? ` : ${oneLine(item.note, 40)}` : '';
 
-  // SRD §3.3 — 정확히 2줄. 3줄을 넘기면 읽지 않는다.
-  const msg = `EN: ${item.en}\n→ ${key}${note}`;
+  // 출처 한국어를 같이 보여준다.
+  //
+  // SRD §3.3 은 정확히 2줄을 요구하지만 여기서 3줄로 늘렸다. 번역이 비동기라
+  // 표시되는 영어는 항상 이전 턴의 것인데, 화면에는 방금 보낸 프롬프트가 붙어 있다.
+  // 라벨이 없으면 "지금 이 프롬프트의 오역"으로 읽힌다 — 실제로 그렇게 오해받았다.
+  // 학습 도구에서 잘못된 (한국어, 영어) 쌍을 머리에 넣는 건 아무것도 안 하느니만 못하다.
+  // 한 줄 더 쓰는 값보다 짝이 어긋나는 손해가 크다.
+  const lines = [];
+  if (item.ko) lines.push(`↩ "${oneLine(item.ko, 44)}"`);
+  lines.push(`EN: ${oneLine(item.en, 100)}`);
+  lines.push(`→ ${key}${note}`);
+  if (rest.length) lines[lines.length - 1] += `   (+${rest.length} 대기)`;
 
-  process.stdout.write(JSON.stringify({ systemMessage: msg }));
+  process.stdout.write(JSON.stringify({ systemMessage: lines.join('\n') }));
   process.exit(0);
 }
 

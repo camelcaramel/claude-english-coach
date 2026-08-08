@@ -14,7 +14,7 @@
             "command": "node",
             "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/translate.js"],
             "async": true,
-            "timeout": 60,
+            "timeout": 180,
             "statusMessage": "영어 표현 적립 중"
           }
         ]
