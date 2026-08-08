@@ -124,6 +124,95 @@ function skipReason(prompt) {
   return null;
 }
 
+/**
+ * 터미널에서 차지하는 칸 수. 한글·CJK·이모지는 2칸이다.
+ * 글자 수로 접으면 한국어 줄만 두 배로 삐져나가 블록이 무너진다.
+ */
+function charWidth(ch) {
+  const c = ch.codePointAt(0);
+  if (c < 0x1100) return 1;
+  if (
+    c <= 0x115f ||                                  // 한글 자모
+    c === 0x2329 || c === 0x232a ||
+    (c >= 0x2e80 && c <= 0xa4cf && c !== 0x303f) || // CJK
+    (c >= 0xac00 && c <= 0xd7a3) ||                 // 한글 음절
+    (c >= 0xf900 && c <= 0xfaff) ||
+    (c >= 0xfe30 && c <= 0xfe6f) ||
+    (c >= 0xff00 && c <= 0xff60) ||                 // 전각
+    (c >= 0xffe0 && c <= 0xffe6) ||
+    (c >= 0x1f300 && c <= 0x1f64f) ||               // 이모지
+    (c >= 0x1f900 && c <= 0x1f9ff) ||
+    (c >= 0x20000 && c <= 0x3fffd)
+  ) return 2;
+  return 1;
+}
+
+function displayWidth(s) {
+  let w = 0;
+  for (const ch of String(s)) w += charWidth(ch);
+  return w;
+}
+
+/**
+ * label + 본문을 폭에 맞춰 접는다. 이어지는 줄은 라벨 너비만큼 들여쓴다.
+ * 들여쓰기가 없으면 접힌 줄이 다음 항목처럼 보여서 블록을 읽을 수 없다.
+ *
+ * 단어 경계에서 접되, 한 단어가 폭보다 길면(긴 URL 등) 그 자리에서 끊는다.
+ */
+function wrapLabeled(label, text, width) {
+  const indent = ' '.repeat(displayWidth(label));
+  const limit = Math.max(20, width - displayWidth(label));
+  const lines = [];
+  let cur = '';
+  let curW = 0;
+
+  const flush = () => {
+    lines.push((lines.length ? indent : label) + cur);
+    cur = '';
+    curW = 0;
+  };
+
+  for (const word of String(text).split(' ').filter(Boolean)) {
+    let w = displayWidth(word);
+    if (curW && curW + 1 + w > limit) flush();
+    if (w > limit) {
+      if (curW) flush();
+      // URL 과 경로는 중간에서 끊지 않는다. 두 조각으로 갈리면 복사도 클릭도
+      // 안 된다. 폭을 넘기더라도 통째로 두는 편이 쓸모 있다.
+      if (/:\/\/|[\\/]/.test(word)) {
+        cur = word;
+        curW = w;
+        flush();
+        continue;
+      }
+      // 그 외에 폭보다 긴 덩어리(공백 없이 이어진 한국어 등)는 잘라 넣는다.
+      // 그대로 두면 줄이 통째로 삐져나가 블록이 무너진다.
+      let chunk = '';
+      let chunkW = 0;
+      for (const ch of word) {
+        const cw = charWidth(ch);
+        if (chunkW + cw > limit) {
+          cur = chunk;
+          curW = chunkW;
+          flush();
+          chunk = '';
+          chunkW = 0;
+        }
+        chunk += ch;
+        chunkW += cw;
+      }
+      cur = chunk;
+      curW = chunkW;
+      continue;
+    }
+    if (curW) { cur += ' '; curW += 1; }
+    cur += word;
+    curW += w;
+  }
+  if (curW) flush();
+  return lines.length ? lines : [label];
+}
+
 /** 자식 `claude -p` 세션이 같은 훅을 다시 실행하는 무한 루프를 끊는다. */
 function isChild() {
   return !!process.env.EN_COACH_CHILD;
@@ -137,4 +226,5 @@ function passthrough() {
 module.exports = {
   dataDir, P, debug, readStdin, readInput,
   appendJsonl, readJsonl, readState, skipReason, isChild, passthrough,
+  displayWidth, wrapLabeled,
 };

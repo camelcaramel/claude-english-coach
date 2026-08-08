@@ -42,6 +42,29 @@ function phrasesOf(item) {
   return [];
 }
 
+/** 접는 폭. 좁은 터미널이면 EN_COACH_WIDTH 로 줄인다. */
+const WIDTH = Math.max(40, Number(process.env.EN_COACH_WIDTH) || 76);
+
+/**
+ * 색은 기본으로 끈다.
+ * systemMessage 가 ANSI 를 통과시키는지 실측하지 않았고, 통과시키지 않으면
+ * 이스케이프 문자가 그대로 찍혀 지금보다 더 안 읽힌다. 켜보고 판단할 수 있게
+ * EN_COACH_COLOR=1 로만 열어둔다.
+ */
+const COLOR = process.env.EN_COACH_COLOR === '1';
+
+function paint(lines) {
+  if (!COLOR) return lines;
+  const DIM = '\x1b[2m', BOLD = '\x1b[1m', CYAN = '\x1b[36m', R = '\x1b[0m';
+  return lines.map((l) => {
+    if (l.startsWith('↩')) return DIM + l + R;
+    if (l.startsWith('KO')) return DIM + l + R;
+    if (l.startsWith('익힐 표현')) return BOLD + l + R;
+    if (l.startsWith('  ▸')) return CYAN + l + R;
+    return l;
+  });
+}
+
 function main() {
   if (L.isChild()) L.passthrough();
 
@@ -68,20 +91,22 @@ function main() {
   const head = rest.length ? `↩ 직전 프롬프트 (+${rest.length} 대기)` : '↩ 직전 프롬프트';
   const lines = [head, ''];
 
-  if (item.ko) lines.push(`KO  ${oneLine(item.ko, 0)}`);
-  lines.push(`EN  ${oneLine(item.en, 0)}`);
+  // 접히는 줄은 라벨 너비만큼 들여쓴다. 들여쓰기가 없으면 KO 가 접힌 줄인지
+  // EN 이 시작한 줄인지 구분이 안 돼서 한눈에 안 들어온다.
+  if (item.ko) lines.push(...L.wrapLabeled('KO  ', oneLine(item.ko, 0), WIDTH));
+  lines.push(...L.wrapLabeled('EN  ', oneLine(item.en, 0), WIDTH));
 
   const phrases = phrasesOf(item);
   if (phrases.length) {
     lines.push('', '익힐 표현');
-    phrases.forEach((ph, i) => {
-      const gloss = ph.ko ? `  —  ${oneLine(ph.ko, 40)}` : '';
-      lines.push(`  ${i + 1}. ${oneLine(ph.p, 70)}${gloss}`);
-      if (ph.ex) lines.push(`     "${oneLine(ph.ex, 100)}"`);
-    });
+    for (const ph of phrases) {
+      const gloss = ph.ko ? `  —  ${oneLine(ph.ko, 0)}` : '';
+      lines.push(...L.wrapLabeled('  ▸ ', oneLine(ph.p, 0) + gloss, WIDTH));
+      if (ph.ex) lines.push(...L.wrapLabeled('    ', `"${oneLine(ph.ex, 0)}"`, WIDTH));
+    }
   }
 
-  process.stdout.write(JSON.stringify({ systemMessage: lines.join('\n') }));
+  process.stdout.write(JSON.stringify({ systemMessage: paint(lines).join('\n') }));
   process.exit(0);
 }
 

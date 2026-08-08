@@ -57,11 +57,15 @@ KO  로그인 실패할 때 리트라이 로직 좀 넣어줘
 EN  Add retry logic for when login fails.
 
 익힐 표현
-  1. add ~ for when ...  —  ~할 때를 대비해 추가
-     "add a fallback for when the cache is cold"
-  2. retry logic  —  재시도 처리
-     "the retry logic should back off exponentially"
+  ▸ add ~ for when ... — ~할 때를 대비해 추가
+    "add a fallback for when the cache is cold"
+  ▸ retry logic — 재시도 처리
+    "the retry logic should back off exponentially"
 ```
+
+긴 문장은 76칸에서 접히고 이어지는 줄은 라벨 너비만큼 들여쓴다. 한글은 2칸으로
+세므로 한국어 줄만 삐져나가는 일이 없다. URL 과 파일 경로는 중간에서 끊지 않는다 —
+두 조각으로 갈리면 복사도 클릭도 안 되기 때문이다.
 
 원문과 번역을 나란히 놓아 짝을 눈으로 맞출 수 있게 하고, 그 문장에서 반복해서
 쓸 만한 표현을 2~3개 뽑아 한국어 뜻과 **다른** 예문을 붙인다. `~` 는 갈아끼우는
@@ -140,7 +144,7 @@ EN 🔥 6일 연속 · 오늘 12개 · 이번주 반복: short-circuit ×4
 한 줄에 하나씩:
 
 ```json
-{"t":1786170589,"ko":"로그인 실패할 때 리트라이 로직 좀 넣어줘","en":"Add retry logic for login failures","key":"on failure","note":"에러 처리 시 사용하는 패턴","cwd":"C:/proj","mode":"exposure","ms":17560}
+{"t":1786170589,"ko":"로그인 실패할 때 리트라이 로직 좀 넣어줘","en":"Add retry logic for when login fails.","key":"add ~ for when ...","note":"~할 때를 대비해 추가","phrases":[{"p":"add ~ for when ...","ko":"~할 때를 대비해 추가","ex":"add a fallback for when the cache is cold"}],"cwd":"C:/proj","mode":"exposure","ms":45287}
 ```
 
 지금 쌓인 것 보기:
@@ -162,6 +166,8 @@ cat ~/.claude/plugins/data/english-coach-english-coach-dev/log.jsonl
 | --- | --- | --- |
 | `EN_COACH_MODEL` | `haiku` | 번역 모델. `sonnet`으로 올리면 표현 품질이 좋아진다 |
 | `EN_COACH_TIMEOUT_MS` | `150000` | 번역 자식 세션 제한시간. 넘기면 그 프롬프트는 로그에 안 남는다 |
+| `EN_COACH_WIDTH` | `76` | 줄 접는 폭(칸). 터미널이 좁으면 줄인다 |
+| `EN_COACH_COLOR` | (없음) | `1` 이면 ANSI 색을 넣는다. systemMessage 의 ANSI 지원은 미검증 |
 | `EN_COACH_DEBUG` | (없음) | 설정 시 데이터 디렉터리에 `debug.log` 기록 |
 
 ---
@@ -173,6 +179,7 @@ cat ~/.claude/plugins/data/english-coach-english-coach-dev/log.jsonl
 ```bash
 node plugins/english-coach/test/run-tests.js                # 훅 엣지 케이스 45개
 node plugins/english-coach/test/test-statusline-install.js  # statusline 경로 해석 7개
+node plugins/english-coach/test/test-display-pairing.js     # 짝 맞춤·레이아웃 44개
 claude plugin validate ./plugins/english-coach              # 매니페스트 검증
 ```
 

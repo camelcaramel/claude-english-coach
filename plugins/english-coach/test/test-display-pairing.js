@@ -35,6 +35,10 @@ function readPending() {
     return fs.readFileSync(path.join(SANDBOX, 'pending.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
   } catch { return []; }
 }
+/** 접힌 줄을 다시 이어붙인다 — 내용이 온전한지 볼 때 쓴다. */
+function unwrap(msg) {
+  return String(msg).replace(/\n\s+/g, ' ');
+}
 function display() {
   const r = spawnSync('node', [path.join(SCRIPTS, 'display.js')], {
     input: JSON.stringify({ prompt: '지금 보내는 새 한국어 프롬프트입니다' }),
@@ -107,8 +111,9 @@ console.log('\n전문 보존');
 setPending([{ ko: '가'.repeat(300), en: 'x'.repeat(400), phrases: [{ p: 'k', ko: 'n', ex: 'e' }] }]);
 {
   const { msg } = display();
-  check('원문 300자 그대로', msg.includes('가'.repeat(300)), '잘림');
-  check('번역 400자 그대로', msg.includes('x'.repeat(400)), '잘림');
+  const flat = unwrap(msg).replace(/ /g, '');
+  check('원문 300자 그대로', flat.includes('가'.repeat(300)), '잘림');
+  check('번역 400자 그대로', flat.includes('x'.repeat(400)), '잘림');
 }
 
 // ── 각 항목이 자기 줄 안에 머무는가 ──────────────────────────
@@ -122,8 +127,11 @@ setPending([{
   const { msg } = display();
   const koLines = msg.split('\n').filter((l) => l.startsWith('KO  '));
   const enLines = msg.split('\n').filter((l) => l.startsWith('EN  '));
-  check('KO 는 한 줄', koLines.length === 1 && koLines[0].includes('https://b.com'), JSON.stringify(koLines));
-  check('EN 는 한 줄', enLines.length === 1 && enLines[0].includes('Start with the design system.'), JSON.stringify(enLines));
+  check('KO 라벨은 한 번만', koLines.length === 1, JSON.stringify(koLines));
+  check('EN 라벨은 한 번만', enLines.length === 1, JSON.stringify(enLines));
+  check('모델 줄바꿈이 아니라 우리 폭으로 접힘',
+    unwrap(msg).includes('https://b.com') && unwrap(msg).includes('Start with the design system.'),
+    JSON.stringify(msg));
   check('표현도 한 줄로 눌림', msg.includes('use ~ as reference'), JSON.stringify(msg));
   check('예문도 한 줄로 눌림', msg.includes('"use the Apollo examples as reference"'), JSON.stringify(msg));
 }
@@ -136,7 +144,7 @@ setPending([{ en: 'No source recorded.', key: 'k', note: 'n' }]);
   check('exit 0', r.status === 0, `status=${r.status}`);
   check('KO 줄 없음', !!msg && !msg.includes('\nKO  '), JSON.stringify(msg));
   check('영어는 표시됨', !!msg && msg.includes('No source recorded.'), JSON.stringify(msg));
-  check('key/note 를 표현으로 승격', !!msg && msg.includes('1. k') && msg.includes('n'), JSON.stringify(msg));
+  check('key/note 를 표현으로 승격', !!msg && msg.includes('▸ k — n'), JSON.stringify(msg));
 }
 
 // ── 표현이 하나도 없어도 되는가 ───────────────────────────────
@@ -147,6 +155,74 @@ setPending([{ ko: '한국어 원문입니다 여기', en: 'English only.' }]);
   check('exit 0', r.status === 0, `status=${r.status}`);
   check('익힐 표현 섹션 생략', !!msg && !msg.includes('익힐 표현'), JSON.stringify(msg));
   check('원문·번역은 나옴', !!msg && msg.includes('한국어 원문입니다 여기') && msg.includes('English only.'), JSON.stringify(msg));
+}
+
+// ── 폭 인식 줄바꿈 ────────────────────────────────────────────
+console.log('\n레이아웃');
+{
+  const L = require(path.join(SCRIPTS, 'lib.js'));
+
+  check('한글은 2칸', L.displayWidth('가나다') === 6, String(L.displayWidth('가나다')));
+  check('ASCII 는 1칸', L.displayWidth('abc') === 3, String(L.displayWidth('abc')));
+  check('섞인 경우', L.displayWidth('a가b') === 4, String(L.displayWidth('a가b')));
+
+  const wrapped = L.wrapLabeled('KO  ', '가'.repeat(60), 40);
+  check('폭 안에서 접힘', wrapped.every((l) => L.displayWidth(l) <= 40), JSON.stringify(wrapped.map((l) => L.displayWidth(l))));
+  check('첫 줄만 라벨', wrapped[0].startsWith('KO  ') && wrapped.slice(1).every((l) => l.startsWith('    ')), JSON.stringify(wrapped));
+
+  const url = 'https://example.com/' + 'a'.repeat(90);
+  const w2 = L.wrapLabeled('EN  ', `see ${url} please`, 40);
+  check('긴 URL 은 쪼개지 않음', w2.some((l) => l.includes(url)), JSON.stringify(w2));
+}
+
+// 실제 블록의 모든 줄이 폭 안에 있는가 (긴 토큰 한 개짜리 줄은 예외)
+setPending([{
+  ko: '네 일단 디자인 레퍼런스 몇 개 드릴게요 참고해서 디자인 시스템 만드는 작업 부터 시작해주세요',
+  en: "I've got some design references for you. Use these as reference and kick off the design system work first.",
+  phrases: [
+    { p: 'use ~ as reference', ko: '참고용으로', ex: 'use the Apollo examples as reference' },
+    { p: 'kick off ~ first', ko: '먼저 시작', ex: 'kick off the database migration first' },
+  ],
+}]);
+{
+  const L = require(path.join(SCRIPTS, 'lib.js'));
+  const { msg } = display();
+  const over = msg.split('\n').filter((l) => L.displayWidth(l) > 76 && l.trim().split(' ').length > 1);
+  check('모든 줄이 76칸 이내', over.length === 0, JSON.stringify(over));
+  check('▸ 로 표현을 구분', msg.includes('  ▸ use ~ as reference'), JSON.stringify(msg));
+}
+
+// 좁은 터미널 대응
+{
+  const L = require(path.join(SCRIPTS, 'lib.js'));
+  const r = spawnSync('node', [path.join(SCRIPTS, 'display.js')], {
+    input: JSON.stringify({ prompt: '좁은 폭으로 다시 보냅니다 한국어' }),
+    encoding: 'utf8', env: { ...ENV, EN_COACH_WIDTH: '48' }, timeout: 10000,
+  });
+  check('EN_COACH_WIDTH 없이 소비돼 빈 출력', (r.stdout || '').trim() === '', '이전 테스트가 이미 소비함');
+
+  setPending([{ ko: '한국어 원문이 제법 길어서 접혀야 하는 경우입니다 그렇습니다', en: 'A fairly long English sentence that has to wrap at a narrow width.', phrases: [] }]);
+  const r2 = spawnSync('node', [path.join(SCRIPTS, 'display.js')], {
+    input: JSON.stringify({ prompt: '좁은 폭으로 다시 보냅니다 한국어' }),
+    encoding: 'utf8', env: { ...ENV, EN_COACH_WIDTH: '48' }, timeout: 10000,
+  });
+  const msg2 = JSON.parse(r2.stdout).systemMessage;
+  const over2 = msg2.split('\n').filter((l) => L.displayWidth(l) > 48 && l.trim().split(' ').length > 1);
+  check('폭 48 에서도 지켜짐', over2.length === 0, JSON.stringify(over2));
+}
+
+// 색은 기본으로 꺼져 있어야 한다
+setPending([{ ko: '색 테스트용 한국어 문장입니다', en: 'Color test.', phrases: [{ p: 'p', ko: 'k', ex: 'e' }] }]);
+{
+  const { msg } = display();
+  check('기본은 ANSI 없음', !/\x1b\[/.test(msg), JSON.stringify(msg));
+
+  setPending([{ ko: '색 테스트용 한국어 문장입니다', en: 'Color test.', phrases: [{ p: 'p', ko: 'k', ex: 'e' }] }]);
+  const r = spawnSync('node', [path.join(SCRIPTS, 'display.js')], {
+    input: JSON.stringify({ prompt: '색을 켜고 다시 보냅니다 한국어로' }),
+    encoding: 'utf8', env: { ...ENV, EN_COACH_COLOR: '1' }, timeout: 10000,
+  });
+  check('EN_COACH_COLOR=1 이면 ANSI 삽입', /\x1b\[/.test(JSON.parse(r.stdout).systemMessage));
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);
