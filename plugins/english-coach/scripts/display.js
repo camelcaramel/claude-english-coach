@@ -50,13 +50,12 @@ const WIDTH = Math.max(40, Number(process.env.EN_COACH_WIDTH) || 76);
  *
  * Claude Code 는 systemMessage 앞에 `UserPromptSubmit says: ` 를 붙인다.
  * 렌더러에 하드코딩돼 있고(`[hookName," says: ",content]`) 훅 설정에 이름을
- * 바꿀 필드가 없어서 없앨 수 없다. 그 자리에 뭐가 오는지가 유일하게 우리가
- * 통제할 수 있는 부분이므로, 첫 줄에서 이게 무슨 기능인지 밝힌다.
+ * 바꿀 필드가 없어서 없앨 수 없다. 대신 내용을 줄바꿈으로 시작해 그 접두사를
+ * 자기 줄에 떼어놓고, 블록은 제목부터 새 줄에서 시작하게 한다.
  *
- * ↩ 는 이 화면에서 렌더링되는 것을 확인한 글자다. 이모지는 폭이 터미널마다
- * 달라 블록 정렬을 흔들 수 있어 쓰지 않는다.
+ * 이모지는 쓰지 않는다. 폭이 터미널마다 달라 블록 정렬을 흔든다.
  */
-const TITLE = process.env.EN_COACH_TITLE || '↩ 직전 프롬프트로 배우는 개발 영어';
+const TITLE = process.env.EN_COACH_TITLE || '내 프롬프트로 배우는 개발 영어';
 
 /**
  * 색은 기본으로 끈다.
@@ -69,8 +68,8 @@ const COLOR = process.env.EN_COACH_COLOR === '1';
 function paint(lines) {
   if (!COLOR) return lines;
   const DIM = '\x1b[2m', BOLD = '\x1b[1m', CYAN = '\x1b[36m', R = '\x1b[0m';
-  return lines.map((l) => {
-    if (l.startsWith('↩')) return DIM + l + R;
+  return lines.map((l, i) => {
+    if (i === 1) return BOLD + l + R;           // 제목
     if (l.startsWith('KO')) return DIM + l + R;
     if (l.startsWith('익힐 표현')) return BOLD + l + R;
     if (l.startsWith('  ▸')) return CYAN + l + R;
@@ -102,7 +101,8 @@ function main() {
   // 한 턴 늦게 보여주므로, 무엇에 대한 영어인지부터 밝히고 원문과 번역을
   // 나란히 놓는다. 짝을 눈으로 맞출 수 있어야 학습이 된다.
   const head = rest.length ? `${TITLE}  (+${rest.length} 대기)` : TITLE;
-  const lines = [head, ''];
+  // 맨 앞의 빈 항목이 `UserPromptSubmit says: ` 를 자기 줄에 떼어놓는다.
+  const lines = ['', head, ''];
 
   // 접히는 줄은 라벨 너비만큼 들여쓴다. 들여쓰기가 없으면 KO 가 접힌 줄인지
   // EN 이 시작한 줄인지 구분이 안 돼서 한눈에 안 들어온다.

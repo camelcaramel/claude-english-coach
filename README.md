@@ -51,7 +51,8 @@
 다음 프롬프트를 보낼 때 위에 이렇게 뜬다:
 
 ```
-UserPromptSubmit says: ↩ 직전 프롬프트로 배우는 개발 영어
+UserPromptSubmit says:
+내 프롬프트로 배우는 개발 영어
 
 KO  로그인 실패할 때 리트라이 로직 좀 넣어줘
 EN  Add retry logic for when login fails.
@@ -79,10 +80,10 @@ EN  Add retry logic for when login fails.
 이전 것이다. 이걸 놓치면 멀쩡한 번역을 오역으로 오해하게 된다.
 제목은 `EN_COACH_TITLE` 로 바꿀 수 있다.
 
-앞에 붙는 `UserPromptSubmit says: ` 는 Claude Code 가 렌더러에 하드코딩해 둔
+앞에 붙는 `UserPromptSubmit says:` 는 Claude Code 가 렌더러에 하드코딩해 둔
 것이라 없앨 수 없다 (`[hookName," says: ",content]`, hookName 은 이벤트 이름
-리터럴이고 훅 설정에 이름 필드가 없다). 그 뒤 첫 줄이 우리가 통제할 수 있는
-유일한 자리라서 거기에 제목을 둔다.
+리터럴이고 훅 설정에 이름 필드가 없다). 대신 내용을 줄바꿈으로 시작해 그
+접두사를 자기 줄에 떼어놓고, 블록은 제목부터 새 줄에서 시작한다.
 
 번역이 여러 개 밀리면 오래된 것부터 한 턴에 하나씩 나오고, 첫 줄에 남은 개수가
 `(+2 대기)` 처럼 붙는다.
@@ -173,7 +174,7 @@ cat ~/.claude/plugins/data/english-coach-english-coach-dev/log.jsonl
 | `EN_COACH_MODEL` | `haiku` | 번역 모델. `sonnet`으로 올리면 표현 품질이 좋아진다 |
 | `EN_COACH_TIMEOUT_MS` | `150000` | 번역 자식 세션 제한시간. 넘기면 그 프롬프트는 로그에 안 남는다 |
 | `EN_COACH_WIDTH` | `76` | 줄 접는 폭(칸). 터미널이 좁으면 줄인다 |
-| `EN_COACH_TITLE` | `↩ 직전 프롬프트로 배우는 개발 영어` | 블록 제목 |
+| `EN_COACH_TITLE` | `내 프롬프트로 배우는 개발 영어` | 블록 제목 |
 | `EN_COACH_COLOR` | (없음) | `1` 이면 ANSI 색을 넣는다. systemMessage 의 ANSI 지원은 미검증 |
 | `EN_COACH_DEBUG` | (없음) | 설정 시 데이터 디렉터리에 `debug.log` 기록 |
 

@@ -62,10 +62,9 @@ setPending([{
 {
   const { msg } = display();
   const lines = msg.split('\n');
-  // 첫 줄은 Claude Code 가 붙이는 `UserPromptSubmit says: ` 바로 뒤에 온다.
-  // 그 자리가 이 블록이 뭔지 밝힐 수 있는 유일한 지점이다.
-  check('제목이 기능과 출처를 함께 밝힘',
-    lines[0].includes('직전 프롬프트') && lines[0].includes('개발 영어'), JSON.stringify(lines[0]));
+  // 내용을 줄바꿈으로 시작해 `UserPromptSubmit says: ` 를 자기 줄에 떼어놓는다.
+  check('첫 줄은 비어 있음 (접두사 분리)', lines[0] === '', JSON.stringify(lines[0]));
+  check('제목이 무슨 기능인지 밝힘', lines[1] === '내 프롬프트로 배우는 개발 영어', JSON.stringify(lines[1]));
   check('원문 한국어 전문', msg.includes('사이트 디자인 먼저 잡고 시작해보려고 해요'), JSON.stringify(msg));
   check('번역 전문', msg.includes('nail down the site design first.'), JSON.stringify(msg));
   check('KO / EN 라벨', msg.includes('\nKO  ') && msg.includes('\nEN  '), JSON.stringify(msg));
@@ -85,7 +84,7 @@ setPending([
 {
   const { msg } = display();
   check('가장 오래된 것부터 (FIFO)', !!msg && msg.includes('First one.'), JSON.stringify(msg));
-  check('대기 개수 표시', !!msg && msg.split('\n')[0].includes('+2 대기'), JSON.stringify(msg));
+  check('대기 개수는 제목 줄에', !!msg && msg.split('\n')[1].includes('+2 대기'), JSON.stringify(msg));
   check('나머지 2개 보존됨', readPending().length === 2, String(readPending().length));
 
   const second = display();
@@ -222,7 +221,7 @@ setPending([{ ko: '제목 테스트용 한국어 문장입니다', en: 'Title te
     encoding: 'utf8', env: { ...ENV, EN_COACH_TITLE: '↩ 개발 영어 · 직전 프롬프트' }, timeout: 10000,
   });
   const msg = JSON.parse(r.stdout).systemMessage;
-  check('EN_COACH_TITLE 반영', msg.split('\n')[0] === '↩ 개발 영어 · 직전 프롬프트', JSON.stringify(msg.split('\n')[0]));
+  check('EN_COACH_TITLE 반영', msg.split('\n')[1] === '↩ 개발 영어 · 직전 프롬프트', JSON.stringify(msg.split('\n')[1]));
 }
 
 // 색은 기본으로 꺼져 있어야 한다

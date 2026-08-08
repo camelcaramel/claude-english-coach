@@ -25,7 +25,8 @@ Phase 0 실측에서 `claude -p` 헤드리스 호출은 훅 안에서 종단 **1
 보지 못하는 것을 실측으로 확인했다 — 작업 컨텍스트가 오염되지 않는다.
 
 ```
-↩ 직전 프롬프트
+UserPromptSubmit says:
+내 프롬프트로 배우는 개발 영어
 
 KO  네 일단 디자인 레퍼런스 몇 개 드릴게요 1. https://www.cosmos.so/ 2. ... 참고해서 디자인 시스템 만드는 작업부터 시작해주세요
 EN  I've got some design references for you: https://www.cosmos.so/, ... Use these as reference and kick off the design system work first.
@@ -36,6 +37,12 @@ EN  I've got some design references for you: https://www.cosmos.so/, ... Use the
   2. kick off ~ first  —  먼저 시작
      "kick off the database migration first"
 ```
+
+`UserPromptSubmit says:` 는 Claude Code 렌더러에 하드코딩돼 있어
+(`[hookName," says: ",content]`) 없앨 수 없다. hookName 은 이벤트 이름
+리터럴이고 훅 설정에 이름 필드가 없다. 대신 내용을 줄바꿈으로 시작해 그
+접두사를 자기 줄에 떼어놓고, 블록은 제목부터 새 줄에서 시작한다.
+제목은 `EN_COACH_TITLE` 로 바꾼다.
 
 **SRD §3.3 의 2줄 제약은 폐기했다.** 그 제약은 프롬프트를 보낸 직후 같은 화면에서
 읽는 것을 전제로 한 값이다. 한 턴 늦게 보여주는 이상 원문과 번역을 나란히 놓지
