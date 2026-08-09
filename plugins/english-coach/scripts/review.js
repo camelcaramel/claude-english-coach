@@ -74,12 +74,14 @@ function analyze(rows) {
   }
 
   const repeated = phrases.filter((p) => p.n > 1);
+  const corrections = rows.filter((r) => r.mode === 'correction').length;
 
   return {
     rows,
     byDay,
     phrases,
     streak,
+    corrections,
     today: byDay.get(dayKey(Date.now())) || 0,
     total: rows.length,
     uniquePhrases: phrases.length,
@@ -99,7 +101,7 @@ function chatSummary(a) {
   const span = Math.max(1, Math.round((a.last - a.first) / DAY) + 1);
   const top = a.phrases.slice(0, 3).map((p) => `${p.p}${p.n > 1 ? `(${p.n}회)` : ''}`).join(', ');
   return [
-    `기간 ${span}일 · 프롬프트 ${a.total}건 · 표현 ${a.uniquePhrases}개 · 🔥 ${a.streak}일 연속`,
+    `기간 ${span}일 · 프롬프트 ${a.total}건${a.corrections ? ` (✎ 교정 ${a.corrections}건)` : ''} · 표현 ${a.uniquePhrases}개 · 🔥 ${a.streak}일 연속`,
     `자주 나온 표현: ${top || '없음'}`,
     `2회 이상 반복된 표현: ${a.repeated.length}개 (재사용률 ${a.reuse.toFixed(2)})`,
     a.repeated.length
@@ -188,7 +190,9 @@ function buildHtml(a) {
         .join('');
       const d = new Date(r.t);
       const when = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-      return `<tr><td class="when">${when}</td><td class="ko">${esc(r.ko)}</td><td class="en">${esc(r.en)}</td><td class="ph">${chips}</td></tr>`;
+      // 교정 모드는 원문이 한국어가 아니라 사용자가 직접 쓴 영어다. 구분해서 표시한다.
+      const mark = r.mode === 'correction' ? '<span class="mode">✎ 교정</span> ' : '';
+      return `<tr><td class="when">${when}</td><td class="ko">${mark}${esc(r.ko)}</td><td class="en">${esc(r.en)}</td><td class="ph">${chips}</td></tr>`;
     })
     .join('');
 
@@ -279,6 +283,7 @@ td.ko{color:var(--ink-2);max-width:250px}
 td.en{max-width:280px}
 .chip{display:inline-block;background:var(--cell-empty);color:var(--ink-2);border-radius:5px;
   padding:2px 7px;font-size:11.5px;margin:0 4px 4px 0;white-space:nowrap}
+.mode{display:inline-block;color:var(--accent);font-size:11px;white-space:nowrap;margin-right:2px}
 .empty{color:var(--muted);text-align:center;padding:40px 0}
 #tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--plane);
   padding:5px 9px;border-radius:6px;font-size:12px;opacity:0;transition:opacity .1s;z-index:9}
@@ -297,6 +302,7 @@ td.en{max-width:280px}
   <div class="tile"><div class="v">${a.streak}</div><div class="l">일 연속</div></div>
   <div class="tile"><div class="v">${a.repeated.length}</div><div class="l">반복된 표현</div></div>
   <div class="tile"><div class="v">${a.reuse.toFixed(2)}</div><div class="l">재사용률</div></div>
+  <div class="tile"><div class="v">${a.corrections}</div><div class="l">✎ 교정</div></div>
 </div>
 
 <section>
@@ -323,6 +329,7 @@ td.en{max-width:280px}
 
 <section>
   <h2>전체 기록</h2>
+  <p class="note">✎ 표시는 <code>/en</code> 으로 직접 영어를 써서 교정받은 기록이다.</p>
   <input id="search" placeholder="한국어·영어·표현으로 검색">
   <table><thead><tr><th>시각</th><th>원문</th><th>영어</th><th>표현</th></tr></thead>
   <tbody id="tbody">${tableHtml || '<tr><td colspan="4" class="empty">아직 기록이 없습니다</td></tr>'}</tbody></table>

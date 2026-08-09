@@ -132,6 +132,46 @@ LLM 을 부르지 않는다. 순수 집계라 즉시 끝나고 비용이 0이며
 
 ---
 
+## 교정 — `/en`
+
+어설픈 영어로 요청하면 교정본을 보여주고, **교정된 의도대로 작업까지 진행한다.**
+영어를 못해도 안전하게 영어로 프롬프팅할 수 있게 하는 것이 목적이다.
+
+```
+/en can you extract this fetch call into a helper, and make it retry when the network fail
+```
+
+```
+✎ can you extract this fetch call into a helper, and make it retry when the network fail
+→ Can you extract this fetch call into a helper function and make it retry when the
+  network request fails?
+  · extract ~ into a helper — 코드 일부를 재사용 가능한 함수로 뽑아낼 때 쓰는 표준 패턴
+  · retry when ~ fails — "네트워크가 실패하다"가 아니라 "요청이 실패하다"가 자연스럽다
+
+(이어서 실제 작업을 진행한다)
+```
+
+교정 기록은 노출 모드와 같은 `log.jsonl` 에 `mode: "correction"` 으로 쌓이고,
+`/en-review` 리포트와 플래시카드에 `✎` 표시로 함께 나온다.
+
+**왜 훅이 아니라 커맨드인가** — SRD §5 는 영어 프롬프트를 훅이 자동으로 잡아
+`additionalContext` 로 정확한 의도를 주입하는 그림이었다. 실측으로 막혔다:
+
+- `type:"prompt"` 훅은 `systemMessage` 도 `additionalContext` 도 통과시키지 않는다.
+  모델이 스스로를 "hook condition evaluator" 로 인식해 임의 출력을 거부하고,
+  거부하면 `Operation stopped by hook` 으로 **사용자 프롬프트가 차단된다.**
+  §1 의 절대 제약을 정면으로 위반하므로 쓸 수 없다.
+- `type:"command"` 훅 + `claude -p` 는 20~50초가 걸린다. 노출은 다음 턴으로
+  미룰 수 있지만 교정은 **이번 턴에** 의도가 들어가야 해서 미룰 수 없다.
+- `UserPromptExpansion` 은 슬래시 커맨드 확장 때만 발화하고 출력도 block 계열뿐이다.
+
+커맨드로 가면 메인 Claude 가 이번 턴에 어차피 답하므로 **추가 지연이 0이고,
+훅이 아니라 차단 위험도 없다.** 대가는 `/en ` 을 앞에 붙이는 것 하나다.
+
+SRD §5 의 `/en-mode` 토글은 만들지 않았다. 커맨드 자체가 모드라서 상태가 필요 없다.
+
+---
+
 ## statusline (선택)
 
 하단에 누적 현황을 상시 표시한다. 비용도 지연도 0이다.
@@ -216,6 +256,7 @@ node plugins/english-coach/test/run-tests.js                # 훅 엣지 케이�
 node plugins/english-coach/test/test-statusline-install.js  # statusline 경로 해석 7개
 node plugins/english-coach/test/test-display-pairing.js     # 짝 맞춤·레이아웃 46개
 node plugins/english-coach/test/test-review.js              # 리포트 생성 32개
+node plugins/english-coach/test/test-correction.js          # 교정 적립 44개
 claude plugin validate ./plugins/english-coach              # 매니페스트 검증
 ```
 
@@ -268,10 +309,10 @@ cat ~/.claude/plugins/data/english-coach-english-coach-dev/debug.log
 
 ## 현재 범위
 
-Phase 1(노출·적립)과 Phase 2(복습)까지 구현됐다. 아직 없는 것:
+Phase 1(노출·적립), Phase 2(복습), Phase 3(교정)까지 구현됐다.
 
-- `/en-mode` 교정 모드 — 어설픈 영어로 써도 교정본을 보여주고 Claude에게는
-  정확한 의도를 전달 (Phase 3, 이게 최종 목표다)
+SRD §7 대로 제외된 것: MCP `Elicitation` 퀴즈, 공개 마켓플레이스 배포,
+다국어 지원, `type:"agent"` 훅.
 
 Phase 2·3의 방향은 1주일 실사용 결과가 정한다. 특히 확인할 것:
 
