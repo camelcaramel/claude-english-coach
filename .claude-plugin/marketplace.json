@@ -9,7 +9,7 @@
       "name": "english-coach",
       "source": "./plugins/english-coach",
       "description": "한국어 프롬프트에서 개발용 영어 표현을 노출·적립하는 학습 플러그인",
-      "version": "0.1.0"
+      "version": "0.3.0"
     }
   ]
 }

@@ -1,11 +1,16 @@
 {
   "name": "english-coach",
   "displayName": "English Coach",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "한국어로 프롬프팅하면서 개발용 영어 표현을 노출·적립한다. 별도 API 키 없이 Claude Code 세션 인증 안에서 동작한다.",
   "author": {
     "name": "camelcaramel"
   },
-  "keywords": ["korean", "english", "learning", "prompt"],
+  "keywords": [
+    "korean",
+    "english",
+    "learning",
+    "prompt"
+  ],
   "license": "MIT"
 }
