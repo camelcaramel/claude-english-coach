@@ -3,17 +3,37 @@
 터미널 밖 — Claude Desktop 채팅, 브라우저 검색창, Slack — 어디서든 한국어를
 개발 영어로 바꿔 붙여넣는다.
 
-한국어를 복사하고 **Ctrl+Alt+E**. 알림이 뜨면 클립보드가 영어로 바뀌어 있다.
-영어를 복사하고 누르면 교정본이 나온다.
+## 쓰는 법
+
+1. 한국어(또는 어설픈 영어)를 **복사한다** (`Ctrl+C`)
+2. **`Ctrl+Alt+E`**
+3. 5초쯤 뒤 알림이 뜨면 **클립보드가 영어로 바뀌어 있다**
+4. 그대로 `Ctrl+V`
+
+실제 기록:
+
+```
+이 기능을 클로드 데스크탑 채팅창에서도 쓸 수 있게 해줘
+  → Make this feature work in Claude Desktop chat too        5992ms
+
+검색어를 자동완성으로 추천해주는 기능 추가해줘
+  → Add search term autocomplete suggestions                 6229ms
+
+이 부분은 나중에 리팩터링하자
+  → Refactor this later                                      4154ms
+```
+
+한글이 있으면 번역하고, 없으면 교정한다.
 
 ## 설치
 
 ```powershell
 .\install.ps1                       # 기본 핫키 Ctrl+Alt+E
-.\install.ps1 -Hotkey "CTRL+ALT+D"  # 다른 조합
+.\install.ps1 -Hotkey "CTRL+ALT+D"  # 다른 조합 (Ctrl+Alt+문자 형태만 가능)
 .\install.ps1 -Uninstall
 ```
 
+시작 메뉴에 바로가기를, 시작프로그램에 데몬을 등록하고 데몬을 띄운다.
 `node` 와 `claude` 가 PATH 에 있어야 한다. 별도 API 키는 쓰지 않는다 —
 Claude Code 세션 인증을 그대로 쓴다.
 
@@ -65,12 +85,24 @@ AutoHotkey 도, Electron 의 `globalShortcut` 도, 네이티브 모듈도 쓰지
 플러그인과 **같은** `log.jsonl` 에 `cwd: "hotkey"` 로 쌓인다. 터미널에서 쓴 것과
 여기서 쓴 것이 `/en-review` 한 화면에 모인다.
 
-## 확인
+## 안 될 때
 
 ```bash
-node ping.js      # 데몬이 살아있나
+node ping.js      # pong 이면 데몬 정상
 cat daemon.log    # 세션 시작·요청·에러 기록
 ```
+
+**핫키를 눌러도 아무 일이 없다** — 바로가기가 시작 메뉴에 있어야 Windows 가
+핫키를 등록한다. 다른 프로그램이 같은 조합을 선점했을 수도 있으니
+`-Hotkey "CTRL+ALT+D"` 로 바꿔본다.
+
+**클립보드가 그대로다** — 실패하면 토스트로 알리고 클립보드는 건드리지 않는다.
+알림도 없었다면 데몬이 죽어 있을 수 있다. 다시 누르면 클라이언트가 띄운다
+(첫 요청만 10초쯤 더 걸린다).
+
+**한글이 깨진다** — PowerShell 5.1 은 BOM 없는 UTF-8 `.ps1` 을 CP949 로 읽는다.
+`install.ps1` 과 `toast.ps1` 에는 BOM 이 있어야 한다. 반대로 `run-hidden.vbs` 에
+BOM 이 붙으면 wscript 가 그것을 본문으로 읽어 조용히 실패한다.
 
 ## 아직 프로토타입이다
 

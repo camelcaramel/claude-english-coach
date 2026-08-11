@@ -4,7 +4,22 @@
 별도 API 키를 쓰지 않고 Claude Code 세션 인증 안에서 동작한다.
 
 플러그인 내부 설계는 [plugins/english-coach/README.md](plugins/english-coach/README.md),
+핫키 도구는 [tools/hotkey/README.md](tools/hotkey/README.md),
 검증 근거는 [srd.md](srd.md) 참고.
+
+## 네 가지 사용법
+
+| 무엇 | 어떻게 | 어디서 |
+| --- | --- | --- |
+| **노출** — 한국어로 쓰면 영어를 보여준다 | 아무것도 안 함 (자동) | Claude Code |
+| **교정** — 어설픈 영어를 고쳐서 작업까지 | `/en <영어>` | Claude Code |
+| **복습** — 리포트·플래시카드 | `/en-review` | Claude Code |
+| **변환** — 클립보드를 영어로 | **Ctrl+Alt+E** | **어디서든** |
+
+앞의 셋은 Claude Code(터미널·Desktop Code 탭) 안에서만 된다. 마지막 하나는
+Claude Desktop 채팅창, 브라우저 검색창, Slack 등 **터미널 밖 아무 데서나** 된다.
+
+네 경로 모두 같은 `log.jsonl` 에 쌓여 `/en-review` 한 화면에 모인다.
 
 ---
 
@@ -175,6 +190,65 @@ SRD §5 의 `/en-mode` 토글은 만들지 않았다. 커맨드 자체가 모드
 
 ---
 
+## 변환 — `Ctrl+Alt+E` (터미널 밖)
+
+Claude Code 밖에서는 훅도 슬래시 커맨드도 못 쓴다. 대신 전역 핫키를 쓴다.
+
+### 설치
+
+```powershell
+cd tools\hotkey
+.\install.ps1
+```
+
+시작 메뉴에 바로가기를, 시작프로그램에 데몬을 등록하고 데몬을 띄운다.
+`node` 와 `claude` 가 PATH 에 있어야 한다.
+
+```powershell
+.\install.ps1 -Hotkey "CTRL+ALT+D"   # 조합 바꾸기 (Ctrl+Alt+문자 형태만 가능)
+.\install.ps1 -Uninstall             # 제거
+```
+
+### 쓰는 법
+
+1. 한국어(또는 어설픈 영어)를 **복사한다** — 드래그해서 `Ctrl+C`
+2. **`Ctrl+Alt+E`** 를 누른다
+3. 5초쯤 뒤 알림이 뜨면 **클립보드가 영어로 바뀌어 있다**
+4. 그대로 `Ctrl+V`
+
+```
+클립보드: 이 기능을 클로드 데스크탑 채팅창에서도 쓸 수 있게 해줘
+   ↓ Ctrl+Alt+E  (5992ms)
+클립보드: Make this feature work in Claude Desktop chat too
+```
+
+한글이 있으면 번역하고, 없으면 교정한다. **클립보드는 핫키를 눌렀을 때만 읽는다** —
+감시하지 않으므로 평소 복사하는 내용은 이 프로그램이 보지 못한다.
+
+### 속도
+
+| | 지연 |
+| --- | --- |
+| 번역만 (기본) | **4.6~7.1초** |
+| + 익힐 표현 1개 (`EN_COACH_PHRASES=1`) | 15~23초 |
+
+지연은 세션 부팅이 아니라 **출력 토큰에 비례한다.** 표현을 요구하면 모델이 길게
+궁리해서 10~15초가 더 붙는다. 그래서 기본은 번역만 받는다 — `(원문, 영어)` 쌍은
+그대로 적립되므로 학습 재료는 남는다.
+
+### 안 될 때
+
+```bash
+cd tools\hotkey
+node ping.js       # pong 이면 데몬 정상
+cat daemon.log     # 세션 시작·요청·에러
+```
+
+데몬은 30분 놀면 스스로 종료한다. 핫키를 누르면 클라이언트가 다시 띄우므로
+(첫 요청만 10초쯤 더 걸린다) 신경 쓰지 않아도 된다.
+
+---
+
 ## statusline (선택)
 
 하단에 누적 현황을 상시 표시한다. 비용도 지연도 0이다.
@@ -245,6 +319,9 @@ cat ~/.claude/plugins/data/english-coach-english-coach-dev/log.jsonl
 | `EN_COACH_TIMEOUT_MS` | `150000` | 번역 자식 세션 제한시간. 넘기면 그 프롬프트는 로그에 안 남는다 |
 | `EN_COACH_WIDTH` | `76` | 줄 접는 폭(칸). 터미널이 좁으면 줄인다 |
 | `EN_COACH_TITLE` | `내 프롬프트로 배우는 개발 영어` | 블록 제목 |
+| `EN_COACH_PHRASES` | (없음) | 핫키에서 `1` 이면 익힐 표현까지 받는다 (10~15초 추가) |
+| `EN_COACH_RESET_AFTER` | `30` | 핫키 데몬이 이 횟수마다 세션을 새로 띄운다 |
+| `EN_COACH_IDLE_MIN` | `30` | 핫키 데몬이 이만큼 놀면 스스로 종료한다 |
 | `EN_COACH_COLOR` | (없음) | `1` 이면 ANSI 색을 넣는다. systemMessage 의 ANSI 지원은 미검증 |
 | `EN_COACH_DEBUG` | (없음) | 설정 시 데이터 디렉터리에 `debug.log` 기록 |
 
@@ -290,11 +367,21 @@ claude plugin validate ./plugins/english-coach              # 매니페스트 �
 
 ## 끄기
 
+플러그인 (노출·`/en`·`/en-review`):
+
 ```
 /plugin              →  English Coach 선택 → disable
 ```
 
+핫키:
+
+```powershell
+cd tools\hotkey
+.\install.ps1 -Uninstall     # 바로가기·자동시작 제거 + 데몬 종료
+```
+
 훅 전체를 급히 막으려면 설정에 `"disableAllHooks": true`.
+어느 쪽을 꺼도 학습 로그는 남는다.
 
 문제가 생겨도 개발이 멈추지는 않는다. 이 플러그인은 어떤 경로에서도 exit 0으로
 빠져나가고, `UserPromptSubmit`에서 프롬프트를 지워버리는 exit 2를 절대 반환하지 않는다.
@@ -319,19 +406,34 @@ cat ~/.claude/plugins/data/english-coach-english-coach-dev/debug.log
 디버그 로그로만 가므로 `claude --debug-file /tmp/cc-debug.log`로 따로 봐야 한다.
 
 **너무 느리다**
-번역은 백그라운드라 체감 지연에 영향을 주지 않는다. 느리다고 느껴지면 다른 원인이다.
+플러그인의 번역은 백그라운드라 체감 지연에 영향을 주지 않는다. 느리다고 느껴지면
+다른 원인이다.
+
+**핫키를 눌러도 아무 일이 없다**
+바로가기가 시작 메뉴에 있어야 Windows 가 핫키를 등록한다. 다른 프로그램이 같은
+조합을 선점했을 수도 있다 — `.\install.ps1 -Hotkey "CTRL+ALT+D"` 로 바꿔본다.
+`node ping.js` 가 `pong` 을 돌려주는지, `daemon.log` 에 에러가 있는지 확인한다.
+
+**핫키를 눌렀는데 클립보드가 그대로다**
+실패하면 토스트로 알리고 클립보드는 건드리지 않는다. 알림이 없었다면 데몬이
+죽어 있을 수 있다 — 다시 누르면 클라이언트가 띄운다 (첫 요청만 10초쯤 더 걸린다).
 
 ---
 
 ## 현재 범위
 
-Phase 1(노출·적립), Phase 2(복습), Phase 3(교정)까지 구현됐다.
+Phase 1(노출·적립), Phase 2(복습), Phase 3(교정)까지 구현됐고,
+터미널 밖에서 쓰는 핫키 도구가 프로토타입으로 붙어 있다.
 
 SRD §7 대로 제외된 것: MCP `Elicitation` 퀴즈, 공개 마켓플레이스 배포,
 다국어 지원, `type:"agent"` 훅.
 
-Phase 2·3의 방향은 1주일 실사용 결과가 정한다. 특히 확인할 것:
+핫키 도구는 Windows 전용이고 트레이 아이콘이 없다. 계속 쓰게 되면 Tauri 로
+포팅해 exe 로 배포할 수 있다 — 로직이 작아서 옮기는 비용이 낮다.
+
+방향은 1주일 실사용 결과가 정한다. 확인할 것:
 
 - [ ] 표시를 **실제로 읽었는가**, 아니면 3일 만에 눈이 미끄러졌는가
-- [ ] 같은 표현이 몇 번 반복되는가 (좁은 도메인 가설 검증)
+- [ ] 같은 표현이 몇 번 반복되는가 (좁은 도메인 가설 검증 — 현재 재사용률 1.04)
 - [ ] 다음 턴에 보여주는 방식이 즉시 보여주는 것보다 나은가
+- [ ] 핫키를 눌러 5초 기다렸다 붙여넣는 걸 **실제로 하게 되는가**
