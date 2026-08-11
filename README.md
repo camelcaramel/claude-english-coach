@@ -31,12 +31,15 @@
 
 ### 다른 PC에서 쓰려면
 
-마켓플레이스 소스가 이 로컬 경로라서 그대로는 안 된다. 저장소를 GitHub에 올린 뒤:
+비공개 저장소이므로 그 PC에서 `gh auth login` 이 돼 있어야 한다.
 
 ```
-/plugin marketplace add <owner>/<repo>
+/plugin marketplace add camelcaramel/claude-english-coach
 /plugin install english-coach@english-coach-dev
 ```
+
+학습 로그는 PC 간에 동기화되지 않는다. 옮기려면
+`~/.claude/plugins/data/english-coach-english-coach-dev/log.jsonl` 을 복사한다.
 
 ---
 
@@ -249,7 +252,20 @@ cat ~/.claude/plugins/data/english-coach-english-coach-dev/log.jsonl
 
 ## 개발 중 수정 사항 반영
 
-저장소를 고쳐도 바로 안 먹는다. 설치될 때 `~/.claude/plugins/cache/`로 복사되기 때문이다.
+마켓플레이스가 가리키는 곳은 `C:\Users\v2008\orca\projects\english-coach` 의
+**master** 다. 작업 워크트리(`orca/workspaces/...`)를 고치는 것만으로는 반영되지
+않는다 — Orca 가 워크트리를 정리해도 살아남게 하려고 영구 경로를 물려 뒀다.
+
+```bash
+git commit ...                                    # 작업 브랜치에
+git -C ~/orca/projects/english-coach merge --ff-only <브랜치>
+```
+
+**버전을 올리지 않으면 재설치가 건너뛰어진다.** `claude plugin update` 가
+`already at the latest version` 으로 넘어가서, 저장소를 고쳐도 실제로 도는 코드는
+옛 버전인 채로 남는다. `plugin.json` 과 `marketplace.json` 의 `version` 을 같이 올린다.
+
+설치될 때 `~/.claude/plugins/cache/` 로 복사되므로 저장소를 고쳐도 바로 안 먹는다.
 
 ```bash
 node plugins/english-coach/test/run-tests.js                # 훅 엣지 케이스 45개
