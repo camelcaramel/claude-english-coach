@@ -53,6 +53,17 @@ sh.Run cmd, 0, False
 "@
 [IO.File]::WriteAllText($vbs, $vbsBody, (New-Object Text.UTF8Encoding $false))
 
+# 쓴 결과를 확인한다. BOM 이나 비 ASCII 바이트가 하나라도 있으면 wscript 가
+# "유효하지 않은 문자입니다 (800A0408)" 대화상자를 띄우고 핫키가 통째로 죽는다.
+# 실제로 한 번 그렇게 깨졌으므로 조용히 넘어가지 않는다.
+$vbsBytes = [IO.File]::ReadAllBytes($vbs)
+if ($vbsBytes[0] -eq 0xEF -and $vbsBytes[1] -eq 0xBB -and $vbsBytes[2] -eq 0xBF) {
+  throw "run-hidden.vbs 에 BOM 이 붙었습니다. wscript 가 이것을 본문으로 읽어 실패합니다."
+}
+if ($vbsBytes | Where-Object { $_ -gt 127 }) {
+  throw "run-hidden.vbs 에 비 ASCII 바이트가 있습니다. 주석까지 ASCII 로만 쓰세요."
+}
+
 $w = New-Object -ComObject WScript.Shell
 
 $s = $w.CreateShortcut($lnk)
